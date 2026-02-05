@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -14,19 +15,26 @@ import {
   Plus,
   Edit,
   Trash2,
-  RefreshCw
+  RefreshCw,
+  Lock
 } from 'lucide-react'
 import { 
   stockService, 
   pharmacieService,
+  authService,
+  employesService,
   type StockProduit,
-  type Pharmacie
+  type Pharmacie,
+  type EmployePharmacie
 } from '../services/api'
 import { formatCurrency, formatDate } from '../lib/utils'
 
 export const Stocks = () => {
+  const navigate = useNavigate()
   const [stocks, setStocks] = useState<StockProduit[]>([])
   const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
+  const [employeProfile, setEmployeProfile] = useState<EmployePharmacie | null>(null)
+  const [hasPermission, setHasPermission] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterType, setFilterType] = useState<'all' | 'rupture' | 'seuil' | 'expiration'>('all')
@@ -39,8 +47,40 @@ export const Stocks = () => {
   const [modalMode, setModalMode] = useState<'create' | 'edit'>('create')
 
   useEffect(() => {
-    loadData()
+    checkPermissions()
   }, [])
+
+  const checkPermissions = async () => {
+    const user = authService.getCurrentUser()
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    if (user.role === 'pharmacien') {
+      setHasPermission(true)
+      loadData()
+    } else if (user.role === 'employe_pharmacie') {
+      try {
+        const profile = await employesService.getMonProfil()
+        setEmployeProfile(profile)
+        
+        if (profile.peut_gerer_stock) {
+          setHasPermission(true)
+          loadData()
+        } else {
+          setHasPermission(false)
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification des permissions:', error)
+        setHasPermission(false)
+        setLoading(false)
+      }
+    } else {
+      navigate('/dashboard')
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -166,6 +206,32 @@ export const Stocks = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    )
+  }
+
+  if (!hasPermission) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Lock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <CardTitle className="text-xl text-gray-700">Accès Restreint</CardTitle>
+            <CardDescription>
+              Vous n'avez pas les permissions nécessaires pour accéder à la gestion des stocks.
+              {employeProfile && (
+                <div className="mt-2 text-sm">
+                  Contactez votre pharmacien pour obtenir la permission "peut_gerer_stock".
+                </div>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button onClick={() => navigate('/dashboard')} variant="outline">
+              Retour au Dashboard
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }

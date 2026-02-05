@@ -9,14 +9,14 @@ import {
   ShoppingCart,
   Package,
   BarChart3,
-  RefreshCw
+  RefreshCw,
+  CreditCard
 } from 'lucide-react'
 import { 
-  commandeService, 
+  ventesService,
   pharmacieService,
-  authService,
-  type CommandePharmacie,
-  type Pharmacie
+  type Pharmacie,
+  type RevenusCombines
 } from '../services/api'
 import { formatCurrency, formatDate } from '../lib/utils'
 
@@ -25,6 +25,14 @@ interface RevenueStats {
   chiffreAffairesSemaine: number
   chiffreAffairesMois: number
   chiffreAffairesAnnee: number
+  transactionsJour: number
+  transactionsSemaine: number
+  transactionsMois: number
+  transactionsAnnee: number
+  ventesManuellesJour: number
+  ventesManuellesSemaine: number
+  ventesManuellesMois: number
+  ventesManuellesAnnee: number
   commandesJour: number
   commandesSemaine: number
   commandesMois: number
@@ -36,7 +44,9 @@ interface RevenueStats {
 interface VentesParJour {
   date: string
   montant: number
-  commandes: number
+  transactions: number
+  ventesManuellesCount: number
+  commandesCount: number
 }
 
 export const Revenus = () => {
@@ -45,6 +55,14 @@ export const Revenus = () => {
     chiffreAffairesSemaine: 0,
     chiffreAffairesMois: 0,
     chiffreAffairesAnnee: 0,
+    transactionsJour: 0,
+    transactionsSemaine: 0,
+    transactionsMois: 0,
+    transactionsAnnee: 0,
+    ventesManuellesJour: 0,
+    ventesManuellesSemaine: 0,
+    ventesManuellesMois: 0,
+    ventesManuellesAnnee: 0,
     commandesJour: 0,
     commandesSemaine: 0,
     commandesMois: 0,
@@ -53,26 +71,13 @@ export const Revenus = () => {
     croissanceMois: 0
   })
   const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
-  const [commandes, setCommandes] = useState<CommandePharmacie[]>([])
   const [ventesParJour, setVentesParJour] = useState<VentesParJour[]>([])
   const [loading, setLoading] = useState(true)
   const [periode, setPeriode] = useState<'jour' | 'semaine' | 'mois' | 'annee'>('mois')
-  const [modeTest, setModeTest] = useState(false)
 
   useEffect(() => {
     loadData()
   }, [])
-
-  // Recalculer quand le mode change
-  useEffect(() => {
-    if (commandes.length > 0) {
-      if (modeTest) {
-        calculateStatsTestMode(commandes)
-      } else {
-        calculateStats(commandes)
-      }
-    }
-  }, [modeTest])
 
   // Recharger les données quand la page devient visible
   useEffect(() => {
@@ -96,24 +101,11 @@ export const Revenus = () => {
       const pharmacieData = await pharmacieService.getMyPharmacie()
       setPharmacie(pharmacieData)
       
-      
       if (pharmacieData) {
-        // Charger les commandes
-        const commandesResponse = await commandeService.getAll(pharmacieData.id)
-        const commandesData = Array.isArray(commandesResponse) ? commandesResponse : commandesResponse.results || []
-        
-        // Filtrer seulement les commandes récupérées (ventes finalisées)
-        const commandesValides = commandesData.filter((cmd: any) => cmd.statut === 'recuperee')
-       
-        setCommandes(commandesValides)
-        
-        // Calculer les statistiques selon le mode
-        if (modeTest) {
-          calculateStatsTestMode(commandesValides)
-        } else {
-          calculateStats(commandesValides)
-        }
-        calculateVentesParJour(commandesValides)
+        // Charger les revenus combinés (commandes + ventes manuelles)
+        const revenusCombines = await ventesService.getRevenusCombines()
+        calculateStats(revenusCombines)
+        calculateVentesParJour(revenusCombines.ventes_par_jour)
       }
     } catch (error) {
       console.error('Erreur lors du chargement des données:', error)
@@ -122,145 +114,41 @@ export const Revenus = () => {
     }
   }
 
-  const calculateStatsTestMode = (commandesData: CommandePharmacie[]) => {
-    // En mode test, on affiche toutes les commandes récupérées comme si elles étaient du mois actuel
-    const totalCommandes = commandesData.length
-    const totalCA = commandesData.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-    const panierMoyen = totalCommandes > 0 ? totalCA / totalCommandes : 0
-
+  const calculateStats = (revenusCombines: RevenusCombines) => {
+    const statsData = revenusCombines.statistiques_par_periode
 
     setStats({
-      chiffreAffairesJour: totalCA,
-      chiffreAffairesSemaine: totalCA,
-      chiffreAffairesMois: totalCA,
-      chiffreAffairesAnnee: totalCA,
-      commandesJour: totalCommandes,
-      commandesSemaine: totalCommandes,
-      commandesMois: totalCommandes,
-      commandesAnnee: totalCommandes,
-      panierMoyen,
-      croissanceMois: 0
+      chiffreAffairesJour: statsData.aujourd_hui.chiffre_affaires_total,
+      chiffreAffairesSemaine: statsData.cette_semaine.chiffre_affaires_total,
+      chiffreAffairesMois: statsData.ce_mois.chiffre_affaires_total,
+      chiffreAffairesAnnee: statsData.cette_annee.chiffre_affaires_total,
+      transactionsJour: statsData.aujourd_hui.nombre_total,
+      transactionsSemaine: statsData.cette_semaine.nombre_total,
+      transactionsMois: statsData.ce_mois.nombre_total,
+      transactionsAnnee: statsData.cette_annee.nombre_total,
+      ventesManuellesJour: statsData.aujourd_hui.nombre_ventes_manuelles,
+      ventesManuellesSemaine: statsData.cette_semaine.nombre_ventes_manuelles,
+      ventesManuellesMois: statsData.ce_mois.nombre_ventes_manuelles,
+      ventesManuellesAnnee: statsData.cette_annee.nombre_ventes_manuelles,
+      commandesJour: statsData.aujourd_hui.nombre_commandes,
+      commandesSemaine: statsData.cette_semaine.nombre_commandes,
+      commandesMois: statsData.ce_mois.nombre_commandes,
+      commandesAnnee: statsData.cette_annee.nombre_commandes,
+      panierMoyen: revenusCombines.panier_moyen,
+      croissanceMois: revenusCombines.croissance_mois
     })
   }
 
-  const calculateStats = (commandesData: CommandePharmacie[]) => {
-    const now = new Date()
+  const calculateVentesParJour = (ventesParJourData: RevenusCombines['ventes_par_jour']) => {
+    const formattedData: VentesParJour[] = ventesParJourData.map(vente => ({
+      date: formatDate(vente.date),
+      montant: vente.montant_total,
+      transactions: vente.total_transactions,
+      ventesManuellesCount: vente.ventes_manuelles,
+      commandesCount: vente.commandes
+    }))
     
-    // Ajuster les dates de début pour inclure les données de test (2025)
-    // En production, on utilisera les vraies dates actuelles
-    const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-    const startOfWeek = new Date(now.getFullYear(), now.getMonth(), now.getDate() - now.getDay())
-    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-    const startOfYear = new Date(now.getFullYear(), 0, 1)
-    
-    // Pour les données de test, inclure aussi l'année précédente
-    const startOfLastYear = new Date(now.getFullYear() - 1, 0, 1)
-    const startOfLastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-    const endOfLastMonth = new Date(now.getFullYear(), now.getMonth(), 0)
- 
-    const commandesJour = commandesData.filter(cmd => {
-      // Utiliser date_recuperation si disponible, sinon date_commande pour compatibilité
-      const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-      return dateRevenu >= startOfDay
-    })
-    
-    const commandesSemaine = commandesData.filter(cmd => {
-      const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-      return dateRevenu >= startOfWeek
-    })
-    
-    const commandesMois = commandesData.filter(cmd => {
-      const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-      return dateRevenu >= startOfMonth
-    })
-    
-    // Pour l'année, utiliser la date de récupération
-    let commandesAnnee = commandesData.filter(cmd => {
-      const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-      return dateRevenu >= startOfYear
-    })
-    
-    // Si pas de commandes cette année, prendre l'année précédente
-    if (commandesAnnee.length === 0) {
-      commandesAnnee = commandesData.filter(cmd => {
-        const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-        return dateRevenu >= startOfLastYear
-      })
-    }
-    
-    const commandesMoisPrecedent = commandesData.filter(cmd => {
-      const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-      return dateRevenu >= startOfLastMonth && dateRevenu <= endOfLastMonth
-    })
-
-
-
-    // Chiffre d'affaires par période
-    const chiffreAffairesJour = commandesJour.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-    const chiffreAffairesSemaine = commandesSemaine.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-    const chiffreAffairesMois = commandesMois.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-    const chiffreAffairesAnnee = commandesAnnee.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-    const chiffreAffairesMoisPrecedent = commandesMoisPrecedent.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-
-    // Si pas de données pour le mois actuel, utiliser toutes les commandes pour l'affichage
-    const commandesPourCalculs = commandesMois.length > 0 ? commandesMois : commandesData
-    const chiffreAffairesPourCalculs = commandesMois.length > 0 ? chiffreAffairesMois : chiffreAffairesAnnee
-
-    // Panier moyen
-    const panierMoyen = commandesPourCalculs.length > 0 ? chiffreAffairesPourCalculs / commandesPourCalculs.length : 0
-
-    // Croissance par rapport au mois précédent
-    const croissanceMois = chiffreAffairesMoisPrecedent > 0 
-      ? ((chiffreAffairesMois - chiffreAffairesMoisPrecedent) / chiffreAffairesMoisPrecedent) * 100 
-      : chiffreAffairesMois > 0 ? 100 : 0
-
-
-    setStats({
-      chiffreAffairesJour,
-      chiffreAffairesSemaine,
-      chiffreAffairesMois,
-      chiffreAffairesAnnee,
-      commandesJour: commandesJour.length,
-      commandesSemaine: commandesSemaine.length,
-      commandesMois: commandesMois.length,
-      commandesAnnee: commandesAnnee.length,
-      panierMoyen,
-      croissanceMois
-    })
-  }
-
-  const calculateVentesParJour = (commandesData: CommandePharmacie[]) => {
-    const now = new Date()
-    const derniers7Jours: VentesParJour[] = []
-
-    // Si pas de commandes récentes, utiliser les dates des commandes existantes
-    const datesCommandes = commandesData.map(cmd => new Date(cmd.date_commande)).sort((a, b) => b.getTime() - a.getTime())
-    const dateReference = datesCommandes.length > 0 ? datesCommandes[0] : now
-
-    
-
-    for (let i = 6; i >= 0; i--) {
-      const date = new Date(dateReference.getFullYear(), dateReference.getMonth(), dateReference.getDate() - i)
-      const startOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate())
-      const endOfDay = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1)
-
-      const commandesDuJour = commandesData.filter(cmd => {
-        // Utiliser date_recuperation si disponible pour les graphiques aussi
-        const dateRevenu = cmd.date_recuperation ? new Date(cmd.date_recuperation) : new Date(cmd.date_commande)
-        return dateRevenu >= startOfDay && dateRevenu < endOfDay
-      })
-
-      const montant = commandesDuJour.reduce((sum, cmd) => sum + parseFloat(cmd.montant_total.toString()), 0)
-
-      derniers7Jours.push({
-        date: formatDate(date),
-        montant,
-        commandes: commandesDuJour.length
-      })
-    }
-
-    
-    setVentesParJour(derniers7Jours)
+    setVentesParJour(formattedData)
   }
 
   const getStatsByPeriode = () => {
@@ -268,31 +156,41 @@ export const Revenus = () => {
       case 'jour':
         return {
           chiffre: stats.chiffreAffairesJour,
-          commandes: stats.commandesJour,
+          transactions: stats.transactionsJour,
+          ventesManuellesCount: stats.ventesManuellesJour,
+          commandesCount: stats.commandesJour,
           label: "Aujourd'hui"
         }
       case 'semaine':
         return {
           chiffre: stats.chiffreAffairesSemaine,
-          commandes: stats.commandesSemaine,
+          transactions: stats.transactionsSemaine,
+          ventesManuellesCount: stats.ventesManuellesSemaine,
+          commandesCount: stats.commandesSemaine,
           label: "Cette semaine"
         }
       case 'mois':
         return {
           chiffre: stats.chiffreAffairesMois,
-          commandes: stats.commandesMois,
+          transactions: stats.transactionsMois,
+          ventesManuellesCount: stats.ventesManuellesMois,
+          commandesCount: stats.commandesMois,
           label: "Ce mois"
         }
       case 'annee':
         return {
           chiffre: stats.chiffreAffairesAnnee,
-          commandes: stats.commandesAnnee,
+          transactions: stats.transactionsAnnee,
+          ventesManuellesCount: stats.ventesManuellesAnnee,
+          commandesCount: stats.commandesAnnee,
           label: "Cette année"
         }
       default:
         return {
           chiffre: stats.chiffreAffairesMois,
-          commandes: stats.commandesMois,
+          transactions: stats.transactionsMois,
+          ventesManuellesCount: stats.ventesManuellesMois,
+          commandesCount: stats.commandesMois,
           label: "Ce mois"
         }
     }
@@ -321,15 +219,11 @@ export const Revenus = () => {
             Analyse des revenus de votre pharmacie {pharmacie?.nom}
           </p>
           <p className="text-sm text-blue-600 mt-1">
-            ℹ️ Seules les commandes récupérées sont comptabilisées dans les revenus
+            ℹ️ Inclut les commandes récupérées et les ventes manuelles
           </p>
-        
         </div>
         
         <div className="flex flex-col sm:flex-row gap-2">
-          {/* Bouton mode test */}
-         
-          
           {/* Bouton actualiser */}
           <Button
             variant="outline"
@@ -368,10 +262,10 @@ export const Revenus = () => {
                 Aucun revenu enregistré
               </h3>
               <p className="text-blue-700 mb-4">
-                Les revenus apparaîtront ici une fois que des commandes auront été marquées comme "récupérées".
+                Les revenus apparaîtront ici une fois que des commandes auront été récupérées ou des ventes manuelles effectuées.
               </p>
               <p className="text-sm text-blue-600">
-                💡 Pour générer des revenus : Commandes → Détails → Marquer comme récupérée
+                💡 Pour générer des revenus : Commandes → Marquer comme récupérée ou Ventes Manuelles → Nouvelle vente
               </p>
             </div>
           </CardContent>
@@ -403,15 +297,24 @@ export const Revenus = () => {
         
         <Card>
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">Ventes Finalisées</CardTitle>
+            <CardTitle className="text-sm font-medium">Total Transactions</CardTitle>
             <ShoppingCart className="h-4 w-4 text-blue-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-600">
-              {currentStats.commandes}
+              {currentStats.transactions}
             </div>
             <p className="text-xs text-blue-700 mt-1">{currentStats.label}</p>
-            <p className="text-xs text-gray-500 mt-1">Commandes récupérées</p>
+            <div className="flex gap-2 mt-1">
+              <Badge variant="outline" className="text-xs">
+                <CreditCard className="h-3 w-3 mr-1" />
+                {currentStats.ventesManuellesCount} ventes
+              </Badge>
+              <Badge variant="outline" className="text-xs">
+                <Package className="h-3 w-3 mr-1" />
+                {currentStats.commandesCount} commandes
+              </Badge>
+            </div>
           </CardContent>
         </Card>
         
@@ -424,7 +327,7 @@ export const Revenus = () => {
             <div className="text-2xl font-bold text-purple-600">
               {formatCurrency(stats.panierMoyen)}
             </div>
-            <p className="text-xs text-purple-700 mt-1">Ce mois</p>
+            <p className="text-xs text-purple-700 mt-1">Toutes transactions</p>
           </CardContent>
         </Card>
         
@@ -447,10 +350,10 @@ export const Revenus = () => {
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-blue-600" />
-            Ventes des 7 derniers jours
+            Revenus des 7 derniers jours
           </CardTitle>
           <CardDescription>
-            Évolution quotidienne de votre chiffre d'affaires
+            Évolution quotidienne de votre chiffre d'affaires (commandes + ventes manuelles)
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -477,9 +380,16 @@ export const Revenus = () => {
                           </span>
                         </div>
                       </div>
-                      <Badge variant="outline" className="text-xs">
-                        {vente.commandes} cmd
-                      </Badge>
+                      <div className="flex gap-1">
+                        <Badge variant="outline" className="text-xs">
+                          <CreditCard className="h-3 w-3 mr-1" />
+                          {vente.ventesManuellesCount}
+                        </Badge>
+                        <Badge variant="outline" className="text-xs">
+                          <Package className="h-3 w-3 mr-1" />
+                          {vente.commandesCount}
+                        </Badge>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -500,14 +410,22 @@ export const Revenus = () => {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Chiffre d'affaires</span>
+              <span className="text-gray-600">Chiffre d'affaires total</span>
               <span className="font-bold text-green-600">
                 {formatCurrency(stats.chiffreAffairesMois)}
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Nombre de commandes</span>
+              <span className="text-gray-600">Ventes manuelles</span>
+              <span className="font-bold">{stats.ventesManuellesMois}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Commandes récupérées</span>
               <span className="font-bold">{stats.commandesMois}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Total transactions</span>
+              <span className="font-bold">{stats.transactionsMois}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">Panier moyen</span>
@@ -537,8 +455,16 @@ export const Revenus = () => {
               </span>
             </div>
             <div className="flex justify-between items-center">
+              <span className="text-gray-600">Ventes manuelles année</span>
+              <span className="font-bold">{stats.ventesManuellesAnnee}</span>
+            </div>
+            <div className="flex justify-between items-center">
               <span className="text-gray-600">Commandes année</span>
               <span className="font-bold">{stats.commandesAnnee}</span>
+            </div>
+            <div className="flex justify-between items-center">
+              <span className="text-gray-600">Total transactions année</span>
+              <span className="font-bold">{stats.transactionsAnnee}</span>
             </div>
             <div className="flex justify-between items-center">
               <span className="text-gray-600">CA moyen/mois</span>
@@ -547,9 +473,9 @@ export const Revenus = () => {
               </span>
             </div>
             <div className="flex justify-between items-center">
-              <span className="text-gray-600">Commandes/mois</span>
+              <span className="text-gray-600">Transactions/mois</span>
               <span className="font-bold">
-                {Math.round(stats.commandesAnnee / 12)}
+                {Math.round(stats.transactionsAnnee / 12)}
               </span>
             </div>
           </CardContent>

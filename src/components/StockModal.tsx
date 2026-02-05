@@ -197,7 +197,7 @@ export const StockModal = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-7xl h-[95vh] max-h-[95vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="w-[95vw] max-w-6xl h-[95vh] max-h-[95vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Package className="h-4 w-4 sm:h-5 sm:w-5" />

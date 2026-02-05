@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../components/ui/card'
 import { Button } from '../components/ui/button'
 import { Input } from '../components/ui/input'
@@ -19,20 +20,28 @@ import {
   Eye,
   FileText,
   MessageSquare,
-  XCircle
+  XCircle,
+  Lock
 } from 'lucide-react'
 import { 
   commandeService, 
   pharmacieService,
+  authService,
+  employesService,
   type CommandePharmacie,
-  type Pharmacie
+  type Pharmacie,
+  type EmployePharmacie
 } from '../services/api'
 import { formatCurrency, formatDateTime } from '../lib/utils'
 
 export const Commandes = () => {
+  const navigate = useNavigate()
   const { showToast, ToastContainer } = useToast()
   const [commandes, setCommandes] = useState<CommandePharmacie[]>([])
   const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
+  const [employeProfile, setEmployeProfile] = useState<EmployePharmacie | null>(null)
+  const [hasPermission, setHasPermission] = useState(false)
+  const [canTreatCommandes, setCanTreatCommandes] = useState(false)
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
   const [filterStatut, setFilterStatut] = useState<string>('all')
@@ -45,8 +54,42 @@ export const Commandes = () => {
   const [commandeForAction, setCommandeForAction] = useState<CommandePharmacie | null>(null)
 
   useEffect(() => {
-    loadData()
+    checkPermissions()
   }, [])
+
+  const checkPermissions = async () => {
+    const user = authService.getCurrentUser()
+    if (!user) {
+      navigate('/login')
+      return
+    }
+
+    if (user.role === 'pharmacien') {
+      setHasPermission(true)
+      setCanTreatCommandes(true)
+      loadData()
+    } else if (user.role === 'employe_pharmacie') {
+      try {
+        const profile = await employesService.getMonProfil()
+        setEmployeProfile(profile)
+        
+        if (profile.peut_voir_commandes) {
+          setHasPermission(true)
+          setCanTreatCommandes(profile.peut_traiter_commandes)
+          loadData()
+        } else {
+          setHasPermission(false)
+          setLoading(false)
+        }
+      } catch (error) {
+        console.error('Erreur lors de la vérification des permissions:', error)
+        setHasPermission(false)
+        setLoading(false)
+      }
+    } else {
+      navigate('/dashboard')
+    }
+  }
 
   const loadData = async () => {
     try {
@@ -200,6 +243,32 @@ export const Commandes = () => {
     return (
       <div className="flex items-center justify-center min-h-[400px]">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+      </div>
+    )
+  }
+
+  if (!hasPermission) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <Lock className="h-12 w-12 text-gray-400 mx-auto mb-4" />
+            <CardTitle className="text-xl text-gray-700">Accès Restreint</CardTitle>
+            <CardDescription>
+              Vous n'avez pas les permissions nécessaires pour accéder aux commandes.
+              {employeProfile && (
+                <div className="mt-2 text-sm">
+                  Contactez votre pharmacien pour obtenir la permission "peut_voir_commandes".
+                </div>
+              )}
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="text-center">
+            <Button onClick={() => navigate('/dashboard')} variant="outline">
+              Retour au Dashboard
+            </Button>
+          </CardContent>
+        </Card>
       </div>
     )
   }
@@ -420,8 +489,8 @@ export const Commandes = () => {
                             Détails
                           </Button>
                           
-                          {/* Boutons d'action avec messages */}
-                          {commande.statut === 'en_attente' && (
+                          {/* Boutons d'action avec messages - seulement si l'utilisateur peut traiter les commandes */}
+                          {canTreatCommandes && commande.statut === 'en_attente' && (
                             <>
                               <Button
                                 size="sm"
@@ -443,7 +512,7 @@ export const Commandes = () => {
                             </>
                           )}
                           
-                          {commande.statut === 'confirmee' && (
+                          {canTreatCommandes && commande.statut === 'confirmee' && (
                             <Button
                               size="sm"
                               onClick={() => handleOpenActionModal(commande, 'preparer')}
@@ -454,7 +523,7 @@ export const Commandes = () => {
                             </Button>
                           )}
                           
-                          {commande.statut === 'preparee' && (
+                          {canTreatCommandes && commande.statut === 'preparee' && (
                             <Button
                               size="sm"
                               onClick={() => handleOpenActionModal(commande, 'prete')}
@@ -465,7 +534,7 @@ export const Commandes = () => {
                             </Button>
                           )}
                           
-                          {commande.statut === 'prete' && (
+                          {canTreatCommandes && commande.statut === 'prete' && (
                             <Button
                               size="sm"
                               onClick={() => handleOpenActionModal(commande, 'recuperee')}
@@ -476,8 +545,8 @@ export const Commandes = () => {
                             </Button>
                           )}
                           
-                          {/* Bouton pour envoyer un message */}
-                          {!['annulee', 'recuperee'].includes(commande.statut) && (
+                          {/* Bouton pour envoyer un message - seulement si l'utilisateur peut traiter les commandes */}
+                          {canTreatCommandes && !['annulee', 'recuperee'].includes(commande.statut) && (
                             <Button
                               variant="outline"
                               size="sm"

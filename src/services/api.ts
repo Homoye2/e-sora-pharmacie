@@ -146,21 +146,22 @@ export interface CommandePharmacie {
   updated_at: string
 }
 
-export interface HistoriqueConnexion {
+export interface Notification {
   id: number
   user: number
   user_nom: string
-  statut: 'succes' | 'echec' | 'deconnexion'
-  statut_display: string
-  ip_address: string
-  user_agent: string
-  device_info: string
-  location: string
-  date_tentative: string
-  details: string
+  type_notification: string
+  titre: string
+  message: string
+  rendez_vous?: number
+  commande?: number
+  data: Record<string, any>
+  lu: boolean
+  date_lecture?: string
+  created_at: string
 }
-
-export interface SessionUtilisateur {
+ 
+export interface HistoriqueConnexion {
   id: number
   user: number
   user_nom: string
@@ -176,13 +177,95 @@ export interface SessionUtilisateur {
   duree_session: string
 }
 
+export interface LigneVente {
+  id: number
+  vente: number
+  produit: Produit
+  produit_nom: string
+  produit_unite: string
+  stock_produit: number
+  quantite: number
+  prix_unitaire: number
+  prix_total: number
+  remise_pourcentage: number
+  remise_montant: number
+  created_at: string
+}
+
+export interface VentePharmacie {
+  id: number
+  numero_vente: string
+  pharmacie: number
+  pharmacie_nom: string
+  nom_client: string
+  telephone_client: string
+  montant_total: number
+  montant_paye: number
+  montant_rendu: number
+  mode_paiement: 'especes' | 'carte' | 'mobile' | 'cheque' | 'credit'
+  mode_paiement_display: string
+  reference_paiement: string
+  prescription_image?: string
+  notes: string
+  vendeur: number
+  vendeur_nom: string
+  date_vente: string
+  lignes: LigneVente[]
+  created_at: string
+  updated_at: string
+}
+
 export interface LigneCommande {
   id: number
   commande: number
   produit: Produit
   quantite: number
   prix_unitaire: number
-  sous_total: number
+  prix_total: number
+}
+
+export interface StatistiquesVentes {
+  total_ventes: number
+  chiffre_affaires_total: number
+  panier_moyen: number
+  par_periode: {
+    [key: string]: {
+      nombre_ventes: number
+      chiffre_affaires: number
+    }
+  }
+  top_produits: Array<{
+    produit__nom: string
+    quantite_totale: number
+    chiffre_affaires: number
+  }>
+  modes_paiement: Array<{
+    mode_paiement: string
+    nombre: number
+    montant: number
+  }>
+}
+
+export interface RevenusCombines {
+  statistiques_par_periode: {
+    [key: string]: {
+      chiffre_affaires_total: number
+      nombre_ventes_manuelles: number
+      nombre_commandes: number
+      nombre_total: number
+      ca_ventes_manuelles: number
+      ca_commandes: number
+    }
+  }
+  panier_moyen: number
+  croissance_mois: number
+  ventes_par_jour: Array<{
+    date: string
+    montant_total: number
+    ventes_manuelles: number
+    commandes: number
+    total_transactions: number
+  }>
 }
 
 export interface StatistiquesSecurite {
@@ -190,6 +273,58 @@ export interface StatistiquesSecurite {
   connexions_reussies: number
   tentatives_echouees: number
   taux_reussite: number
+}
+
+export interface EmployePharmacie {
+  id: number
+  user: number
+  user_nom: string
+  user_email: string
+  pharmacie: number
+  pharmacie_nom: string
+  poste: string
+  date_embauche: string
+  salaire?: number
+  peut_vendre: boolean
+  peut_gerer_stock: boolean
+  peut_voir_commandes: boolean
+  peut_traiter_commandes: boolean
+  actif: boolean
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface EmployePharmacieCreate {
+  nom: string
+  email: string
+  password: string
+  pharmacie: number
+  poste: string
+  date_embauche: string
+  salaire?: number
+  peut_vendre: boolean
+  peut_gerer_stock: boolean
+  peut_voir_commandes: boolean
+  peut_traiter_commandes: boolean
+  notes?: string
+}
+
+export interface StatistiquesEmployes {
+  total_employes: number
+  employes_actifs: number
+  employes_inactifs: number
+  par_pharmacie: Record<string, {
+    total: number
+    actifs: number
+  }>
+  par_poste: Record<string, number>
+  permissions: {
+    peuvent_vendre: number
+    peuvent_gerer_stock: number
+    peuvent_voir_commandes: number
+    peuvent_traiter_commandes: number
+  }
 }
 
 // Services API
@@ -251,12 +386,30 @@ export const pharmacieService = {
   },
   
   getMyPharmacie: async () => {
-    const response = await api.get('/pharmacies/')
-    // Filtrer pour obtenir la pharmacie de l'utilisateur connecté
     const user = authService.getCurrentUser()
-    if (user && response.data.results) {
-      return response.data.results.find((p: Pharmacie) => p.user === user.id)
+    if (!user) return null
+    
+    if (user.role === 'pharmacien') {
+      // Pour les pharmaciens, chercher la pharmacie dont ils sont propriétaires
+      const response = await api.get('/pharmacies/')
+      if (response.data.results) {
+        return response.data.results.find((p: Pharmacie) => p.user === user.id)
+      }
+    } else if (user.role === 'employe_pharmacie') {
+      // Pour les employés, récupérer la pharmacie via leur profil employé
+      try {
+        const employeResponse = await api.get('/employes/mon_profil/')
+        if (employeResponse.data) {
+          const employe = employeResponse.data
+          // Récupérer les détails de la pharmacie
+          const pharmacieResponse = await api.get(`/pharmacies/${employe.pharmacie}/`)
+          return pharmacieResponse.data
+        }
+      } catch (error) {
+        console.error('Erreur lors de la récupération de la pharmacie de l\'employé:', error)
+      }
     }
+    
     return null
   },
 
@@ -545,6 +698,221 @@ export const horaireUtils = {
     { key: 'samedi', label: 'Samedi' },
     { key: 'dimanche', label: 'Dimanche' }
   ]
+}
+
+export const ventesService = {
+  getAll: async (pharmacieId?: number, periode?: string) => {
+    const params: any = {}
+    if (pharmacieId) params.pharmacie = pharmacieId
+    if (periode) params.periode = periode
+    
+    const response = await api.get('/ventes/', { params })
+    return response.data
+  },
+  
+  getById: async (id: number) => {
+    const response = await api.get(`/ventes/${id}/`)
+    return response.data
+  },
+  
+  create: async (data: {
+    pharmacie: number
+    nom_client?: string
+    telephone_client?: string
+    montant_paye: number
+    mode_paiement: string
+    reference_paiement?: string
+    prescription_image?: File
+    notes?: string
+    lignes: Array<{
+      produit_id: number
+      quantite: number
+      prix_unitaire: number
+      remise_pourcentage?: number
+    }>
+  }) => {
+    // Si une image de prescription est fournie, utiliser FormData
+    if (data.prescription_image) {
+      const formData = new FormData()
+      
+      // Ajouter tous les champs sauf les lignes et l'image
+      Object.entries(data).forEach(([key, value]) => {
+        if (key !== 'lignes' && key !== 'prescription_image' && value !== undefined) {
+          formData.append(key, value.toString())
+        }
+      })
+      
+      // Ajouter l'image
+      formData.append('prescription_image', data.prescription_image)
+      
+      // Ajouter les lignes en JSON
+      formData.append('lignes', JSON.stringify(data.lignes))
+      
+      const response = await api.post('/ventes/', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
+      })
+      return response.data
+    } else {
+      // Utiliser JSON normal
+      const response = await api.post('/ventes/', data)
+      return response.data
+    }
+  },
+  
+  getStatistiques: async (pharmacieId?: number, periode?: string) => {
+    const params: any = {}
+    if (pharmacieId) params.pharmacie = pharmacieId
+    if (periode) params.periode = periode
+    
+    const response = await api.get('/ventes/statistiques/', { params })
+    return response.data
+  },
+  
+  getRevenusCombines: async () => {
+    const response = await api.get('/ventes/revenus_combines/')
+    return response.data
+  },
+  
+  getRecu: async (id: number) => {
+    const response = await api.get(`/ventes/${id}/recu/`)
+    return response.data
+  },
+  
+  // Méthodes utilitaires
+  getModePaiementOptions: () => [
+    { value: 'especes', label: 'Espèces' },
+    { value: 'carte', label: 'Carte bancaire' },
+    { value: 'mobile', label: 'Paiement mobile' },
+    { value: 'cheque', label: 'Chèque' },
+    { value: 'credit', label: 'Crédit' }
+  ],
+  
+  calculateTotal: (lignes: Array<{ quantite: number; prix_unitaire: number; remise_pourcentage?: number }>) => {
+    return lignes.reduce((total, ligne) => {
+      const prixBrut = ligne.quantite * ligne.prix_unitaire
+      const remise = (ligne.remise_pourcentage || 0) * prixBrut / 100
+      return total + (prixBrut - remise)
+    }, 0)
+  }
+}
+
+export const employesService = {
+  getAll: async () => {
+    const response = await api.get('/employes/')
+    return response.data
+  },
+  
+  getById: async (id: number) => {
+    const response = await api.get(`/employes/${id}/`)
+    return response.data
+  },
+  
+  getMonProfil: async () => {
+    const response = await api.get('/employes/mon_profil/')
+    return response.data
+  },
+  
+  create: async (data: EmployePharmacieCreate) => {
+    const response = await api.post('/employes/', data)
+    return response.data
+  },
+  
+  update: async (id: number, data: Partial<EmployePharmacie>) => {
+    const response = await api.put(`/employes/${id}/`, data)
+    return response.data
+  },
+  
+  delete: async (id: number) => {
+    await api.delete(`/employes/${id}/`)
+  },
+  
+  activer: async (id: number) => {
+    const response = await api.post(`/employes/${id}/activer/`)
+    return response.data
+  },
+  
+  desactiver: async (id: number) => {
+    const response = await api.post(`/employes/${id}/desactiver/`)
+    return response.data
+  },
+  
+  changerMotDePasse: async (id: number, nouveauMotDePasse: string) => {
+    const response = await api.post(`/employes/${id}/changer_mot_de_passe/`, {
+      nouveau_mot_de_passe: nouveauMotDePasse
+    })
+    return response.data
+  },
+  
+  getMesEmployes: async () => {
+    const response = await api.get('/employes/mes_employes/')
+    return response.data
+  },
+  
+  getStatistiques: async () => {
+    const response = await api.get('/employes/statistiques/')
+    return response.data
+  },
+  
+  // Méthodes utilitaires
+  getPostesOptions: () => [
+    { value: 'Employé', label: 'Employé' },
+    { value: 'Vendeur', label: 'Vendeur' },
+    { value: 'Préparateur', label: 'Préparateur' },
+    { value: 'Assistant', label: 'Assistant' },
+    { value: 'Caissier', label: 'Caissier' },
+    { value: 'Magasinier', label: 'Magasinier' },
+  ]
+}
+
+export const notificationsService = {
+  getAll: async (filters?: { type_notification?: string; lu?: boolean }) => {
+    const params = filters || {}
+    const response = await api.get('/notifications/', { params })
+    return response.data
+  },
+  
+  getById: async (id: number) => {
+    const response = await api.get(`/notifications/${id}/`)
+    return response.data
+  },
+  
+  markAsRead: async (id: number) => {
+    const response = await api.post(`/notifications/${id}/marquer_lu/`)
+    return response.data
+  },
+  
+  markAllAsRead: async () => {
+    const response = await api.post('/notifications/marquer_toutes_lues/')
+    return response.data
+  },
+  
+  getUnreadCount: async () => {
+    const response = await api.get('/notifications/non_lues/')
+    return response.data
+  },
+  
+  delete: async (id: number) => {
+    await api.delete(`/notifications/${id}/`)
+  },
+  
+  // Méthodes utilitaires
+  getTypeConfig: (type: string) => {
+    const config = {
+      'rendez_vous_nouveau': { label: 'Nouveau RDV', icon: 'calendar', color: 'blue' },
+      'rendez_vous_confirme': { label: 'RDV Confirmé', icon: 'check', color: 'green' },
+      'rendez_vous_refuse': { label: 'RDV Refusé', icon: 'x', color: 'red' },
+      'rendez_vous_rappel': { label: 'Rappel RDV', icon: 'bell', color: 'orange' },
+      'commande_confirmee': { label: 'Commande', icon: 'shopping-cart', color: 'green' },
+      'commande_prete': { label: 'Commande Prête', icon: 'package', color: 'green' },
+      'consultation_rapport': { label: 'Rapport', icon: 'file-text', color: 'blue' },
+      'stock_alerte': { label: 'Stock', icon: 'alert-triangle', color: 'orange' },
+      'autre': { label: 'Autre', icon: 'info', color: 'gray' }
+    }
+    
+    return config[type as keyof typeof config] || config.autre
+  }
 }
 
 export default api

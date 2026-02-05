@@ -26,7 +26,7 @@ export const Login = () => {
       const response = await authService.login(formData.email, formData.password)
       
       // Vérifier que l'utilisateur est un pharmacien
-      if (response.user.role !== 'pharmacien') {
+      if (response.user.role !== 'pharmacien' && response.user.role !== 'employe_pharmacie') {
         setError('Accès réservé aux pharmaciens uniquement')
         return
       }

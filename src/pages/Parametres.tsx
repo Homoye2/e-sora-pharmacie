@@ -27,7 +27,6 @@ import {
   securityService,
   type Pharmacie,
   type User as UserType,
-  type SessionUtilisateur,
   type HistoriqueConnexion,
   type StatistiquesSecurite
 } from '../services/api'
@@ -79,7 +78,7 @@ export const Parametres = () => {
   })
 
   // États pour la sécurité
-  const [sessions, setSessions] = useState<SessionUtilisateur[]>([])
+  const [sessions, setSessions] = useState<HistoriqueConnexion[]>([])
   const [historique, setHistorique] = useState<HistoriqueConnexion[]>([])
   const [statistiquesSecurite, setStatistiquesSecurite] = useState<StatistiquesSecurite | null>(null)
   const [loadingSecurity, setLoadingSecurity] = useState(false)
@@ -1094,20 +1093,17 @@ export const Parametres = () => {
                         <div key={entry.id} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 border rounded-lg space-y-2 sm:space-y-0">
                           <div className="flex items-start sm:items-center space-x-3 flex-1">
                             <div className={`p-2 rounded-lg flex-shrink-0 ${
-                              entry.statut === 'succes' ? 'bg-green-100' : 
-                              entry.statut === 'echec' ? 'bg-red-100' : 'bg-gray-100'
+                              entry.active ? 'bg-green-100' : 'bg-gray-100'
                             }`}>
-                              {entry.statut === 'succes' ? (
+                              {entry.active ? (
                                 <div className="h-3 w-3 bg-green-500 rounded-full"></div>
-                              ) : entry.statut === 'echec' ? (
-                                <div className="h-3 w-3 bg-red-500 rounded-full"></div>
                               ) : (
                                 <div className="h-3 w-3 bg-gray-500 rounded-full"></div>
                               )}
                             </div>
                             <div className="flex-1 min-w-0">
                               <div className="font-medium text-sm sm:text-base">
-                                {entry.statut_display}
+                                {entry.active ? 'Session Active' : 'Session Fermée'}
                               </div>
                               <div className="text-xs sm:text-sm text-gray-500 truncate">
                                 {browser} sur {operatingSystem}
@@ -1116,16 +1112,15 @@ export const Parametres = () => {
                                 {entry.ip_address}
                               </div>
                               <div className="text-xs text-gray-400 mt-1">
-                                {new Date(entry.date_tentative).toLocaleString('fr-FR')}
+                                {new Date(entry.date_creation).toLocaleString('fr-FR')}
                               </div>
                             </div>
                           </div>
                           <div className="flex justify-end sm:justify-center">
                             <Badge 
-                              variant={entry.statut === 'succes' ? 'default' : 'secondary'}
+                              variant={entry.active ? 'default' : 'secondary'}
                               className={`text-xs ${
-                                entry.statut === 'succes' ? 'bg-green-100 text-green-800' :
-                                entry.statut === 'echec' ? 'bg-red-100 text-red-800' :
+                                entry.active ? 'bg-green-100 text-green-800' :
                                 'bg-gray-100 text-gray-800'
                               }`}
                             >

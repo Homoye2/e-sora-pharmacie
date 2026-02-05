@@ -114,7 +114,7 @@ export const CommandeDetails = ({
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="w-[95vw] max-w-7xl h-[95vh] max-h-[95vh] overflow-hidden flex flex-col p-0">
+      <DialogContent className="w-[95vw] max-w-6xl h-[95vh] max-h-[95vh] overflow-hidden flex flex-col p-0">
         <DialogHeader className="px-4 py-3 sm:px-6 sm:py-4 border-b flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
             <Package className="h-4 w-4 sm:h-5 sm:w-5" />
@@ -311,11 +311,11 @@ export const CommandeDetails = ({
                           <div className="flex-1 min-w-0">
                             <p className="font-medium text-sm sm:text-base truncate">{ligne.produit.nom}</p>
                             <p className="text-xs sm:text-sm text-gray-600">
-                              Quantité: {ligne.quantite} • Prix unitaire: {formatCurrency(ligne.prix_unitaire)}
+                              Quantité: {ligne.quantite} • Prix unitaire:{formatCurrency(ligne.prix_unitaire)}
                             </p>
                           </div>
                           <div className="text-left sm:text-right flex-shrink-0">
-                            <p className="font-medium text-sm sm:text-base">{formatCurrency(ligne.sous_total)}</p>
+                            <p className="font-medium text-sm sm:text-base">{formatCurrency(ligne.prix_total)}</p>
                           </div>
                         </div>
                       ))}
