@@ -61,6 +61,8 @@ export const Employes = () => {
     peut_gerer_stock: false,
     peut_voir_commandes: true,
     peut_traiter_commandes: false,
+    peut_annuler_vente: false,
+    peut_enregistrer_facture: false,
     notes: ''
   })
   
@@ -117,6 +119,8 @@ export const Employes = () => {
         peut_gerer_stock: false,
         peut_voir_commandes: true,
         peut_traiter_commandes: false,
+        peut_annuler_vente: false,
+        peut_enregistrer_facture: false,
         notes: ''
       })
       
@@ -226,6 +230,8 @@ export const Employes = () => {
       peut_gerer_stock: employe.peut_gerer_stock,
       peut_voir_commandes: employe.peut_voir_commandes,
       peut_traiter_commandes: employe.peut_traiter_commandes,
+      peut_annuler_vente: employe.peut_annuler_vente,
+      peut_enregistrer_facture: employe.peut_enregistrer_facture,
       notes: employe.notes
     })
     setIsEditModalOpen(true)
@@ -395,6 +401,24 @@ export const Employes = () => {
                     onChange={(e) => setCreateForm({...createForm, peut_traiter_commandes: e.target.checked})}
                   />
                   <span className="text-sm">Peut traiter les commandes</span>
+                </label>
+                
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={createForm.peut_annuler_vente}
+                    onChange={(e) => setCreateForm({...createForm, peut_annuler_vente: e.target.checked})}
+                  />
+                  <span className="text-sm">Peut annuler une vente</span>
+                </label>
+                
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={createForm.peut_enregistrer_facture}
+                    onChange={(e) => setCreateForm({...createForm, peut_enregistrer_facture: e.target.checked})}
+                  />
+                  <span className="text-sm">Peut enregistrer des factures</span>
                 </label>
               </div>
             </div>
@@ -701,6 +725,24 @@ export const Employes = () => {
                   onChange={(e) => setEditForm({...editForm, peut_traiter_commandes: e.target.checked})}
                 />
                 <span className="text-sm">Peut traiter les commandes</span>
+              </label>
+              
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={editForm.peut_annuler_vente || false}
+                  onChange={(e) => setEditForm({...editForm, peut_annuler_vente: e.target.checked})}
+                />
+                <span className="text-sm">Peut annuler une vente</span>
+              </label>
+              
+              <label className="flex items-center space-x-2">
+                <input
+                  type="checkbox"
+                  checked={editForm.peut_enregistrer_facture || false}
+                  onChange={(e) => setEditForm({...editForm, peut_enregistrer_facture: e.target.checked})}
+                />
+                <span className="text-sm">Peut enregistrer des factures</span>
               </label>
             </div>
           </div>

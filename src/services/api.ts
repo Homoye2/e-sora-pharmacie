@@ -209,6 +209,10 @@ export interface VentePharmacie {
   notes: string
   vendeur: number
   vendeur_nom: string
+  annulee: boolean
+  motif_annulation: string
+  date_annulation?: string
+  annulee_par?: number
   date_vente: string
   lignes: LigneVente[]
   created_at: string
@@ -761,6 +765,13 @@ export const ventesService = {
     }
   },
   
+  annuler: async (id: number, motif: string) => {
+    const response = await api.post(`/ventes/${id}/annuler/`, {
+      motif_annulation: motif
+    })
+    return response.data
+  },
+  
   getStatistiques: async (pharmacieId?: number, periode?: string) => {
     const params: any = {}
     if (pharmacieId) params.pharmacie = pharmacieId
@@ -916,3 +927,120 @@ export const notificationsService = {
 }
 
 export default api
+
+
+// ============================================================================
+// Types pour les Factures Fournisseurs
+// ============================================================================
+
+export interface Fournisseur {
+  id: number
+  nom: string
+  adresse: string
+  ville: string
+  pays: string
+  telephone: string
+  email?: string
+  numero_registre_commerce?: string
+  numero_identification_fiscale?: string
+  delai_paiement_jours: number
+  remise_habituelle: number
+  actif: boolean
+  notes: string
+  created_at: string
+  updated_at: string
+}
+
+export interface LigneFactureFournisseur {
+  id?: number
+  produit: number
+  produit_nom?: string
+  nom_produit?: string
+  quantite: number
+  prix_unitaire_ht: number
+  taux_tva: number
+  remise_ligne: number
+  montant_ht?: number
+  montant_tva?: number
+  montant_ttc?: number
+  numero_lot: string
+  date_peremption?: string
+}
+
+export interface FactureFournisseur {
+  id: number
+  numero_facture: string
+  pharmacie: number
+  pharmacie_nom?: string
+  fournisseur: number
+  fournisseur_nom?: string
+  enregistre_par?: number
+  enregistre_par_nom?: string
+  date_facture: string
+  date_enregistrement?: string
+  date_echeance: string
+  montant_ht: number
+  montant_tva: number
+  montant_remise: number
+  montant_total: number
+  mode_paiement: 'especes' | 'cheque' | 'virement' | 'mobile_money' | 'credit'
+  montant_paye: number
+  montant_restant?: number
+  est_payee?: boolean
+  statut: 'en_attente' | 'validee' | 'annulee'
+  stock_incremente: boolean
+  notes: string
+  fichier_facture?: string
+  lignes?: LigneFactureFournisseur[]
+  created_at?: string
+  updated_at?: string
+}
+
+export interface FactureFournisseurCreate {
+  numero_facture: string
+  pharmacie: number
+  fournisseur: number
+  date_facture: string
+  date_echeance?: string
+  montant_ht: number
+  montant_tva: number
+  montant_remise: number
+  montant_total: number
+  mode_paiement: string
+  montant_paye: number
+  notes?: string
+  fichier_facture?: File
+  lignes: LigneFactureFournisseur[]
+}
+
+export interface StatistiquesFactures {
+  total_factures: number
+  montant_total: number
+  montant_paye: number
+  montant_restant: number
+  factures_en_attente: number
+  factures_validees: number
+}
+
+// ============================================================================
+// Services pour les Factures Fournisseurs
+// ============================================================================
+
+export const fournisseurService = {
+  getAll: () => api.get<Fournisseur[]>('/fournisseurs/'),
+  getById: (id: number) => api.get<Fournisseur>(`/fournisseurs/${id}/`),
+  create: (data: Partial<Fournisseur>) => api.post<Fournisseur>('/fournisseurs/', data),
+  update: (id: number, data: Partial<Fournisseur>) => api.put<Fournisseur>(`/fournisseurs/${id}/`, data),
+  delete: (id: number) => api.delete(`/fournisseurs/${id}/`),
+}
+
+export const factureFournisseurService = {
+  getAll: () => api.get<FactureFournisseur[]>('/factures-fournisseurs/'),
+  getById: (id: number) => api.get<FactureFournisseur>(`/factures-fournisseurs/${id}/`),
+  create: (data: FactureFournisseurCreate) => api.post<FactureFournisseur>('/factures-fournisseurs/', data),
+  update: (id: number, data: Partial<FactureFournisseur>) => api.put<FactureFournisseur>(`/factures-fournisseurs/${id}/`, data),
+  delete: (id: number) => api.delete(`/factures-fournisseurs/${id}/`),
+  valider: (id: number) => api.post<FactureFournisseur>(`/factures-fournisseurs/${id}/valider/`, { valider: true }),
+  annuler: (id: number) => api.post<FactureFournisseur>(`/factures-fournisseurs/${id}/annuler/`),
+  getStatistiques: () => api.get<StatistiquesFactures>('/factures-fournisseurs/statistiques/'),
+}

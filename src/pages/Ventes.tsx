@@ -353,6 +353,45 @@ export const Ventes = () => {
     }
   }
 
+  const handleAnnulerVente = async (vente: VentePharmacie) => {
+    const motif = prompt('Motif de l\'annulation (obligatoire):')
+    
+    if (motif === null) {
+      // L'utilisateur a cliqué sur Annuler
+      return
+    }
+    
+    if (!motif || motif.trim() === '') {
+      alert('Le motif d\'annulation est obligatoire.')
+      return
+    }
+    
+    if (!confirm(`Êtes-vous sûr de vouloir annuler la vente ${vente.numero_vente} ?\n\nLe stock sera restitué automatiquement.`)) {
+      return
+    }
+    
+    try {
+      setLoading(true)
+      await ventesService.annuler(vente.id, motif.trim())
+      alert('Vente annulée avec succès. Le stock a été restitué.')
+      
+      // Recharger les données
+      await loadData()
+      
+      // Fermer le modal si ouvert
+      if (showVenteDetails && selectedVente?.id === vente.id) {
+        setShowVenteDetails(false)
+      }
+    } catch (error: any) {
+      console.error('Erreur lors de l\'annulation de la vente:', error)
+      console.error('Response data:', error.response?.data)
+      const errorMessage = error.response?.data?.error || error.response?.data?.message || error.response?.data?.detail || 'Erreur lors de l\'annulation de la vente'
+      alert(errorMessage)
+    } finally {
+      setLoading(false)
+    }
+  }
+
   const generateTicketContent = (vente: VentePharmacie) => {
     const date = new Date(vente.date_vente).toLocaleString('fr-FR')
     
@@ -891,8 +930,13 @@ export const Ventes = () => {
                     </TableRow>
                   ) : (
                     ventes.map((vente) => (
-                      <TableRow key={vente.id}>
-                        <TableCell className="font-mono">{vente.numero_vente}</TableCell>
+                      <TableRow key={vente.id} className={vente.annulee ? 'bg-red-50' : ''}>
+                        <TableCell className="font-mono">
+                          {vente.numero_vente}
+                          {vente.annulee && (
+                            <Badge variant="destructive" className="ml-2">Annulée</Badge>
+                          )}
+                        </TableCell>
                         <TableCell>{formatDate(vente.date_vente)}</TableCell>
                         <TableCell>
                           {vente.nom_client || 'Client anonyme'}
@@ -920,14 +964,30 @@ export const Ventes = () => {
                             >
                               <Eye className="h-4 w-4" />
                             </Button>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => handlePrintRecu(vente)}
-                              title="Imprimer le reçu"
-                            >
-                              <Printer className="h-4 w-4" />
-                            </Button>
+                            {!vente.annulee && (
+                              <>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handlePrintRecu(vente)}
+                                  title="Imprimer le reçu"
+                                >
+                                  <Printer className="h-4 w-4" />
+                                </Button>
+                                {(authService.getCurrentUser()?.role === 'pharmacien' || 
+                                  (employeProfile && employeProfile.peut_annuler_vente)) && (
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleAnnulerVente(vente)}
+                                    title="Annuler la vente"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                  >
+                                    <X className="h-4 w-4" />
+                                  </Button>
+                                )}
+                              </>
+                            )}
                           </div>
                         </TableCell>
                       </TableRow>
@@ -1072,6 +1132,9 @@ export const Ventes = () => {
               <div className="flex items-center justify-between mb-6">
                 <h2 className="text-xl font-bold text-gray-900">
                   Détails de la Vente #{selectedVente.numero_vente}
+                  {selectedVente.annulee && (
+                    <Badge variant="destructive" className="ml-2">Annulée</Badge>
+                  )}
                 </h2>
                 <button
                   onClick={() => setShowVenteDetails(false)}
@@ -1082,6 +1145,28 @@ export const Ventes = () => {
               </div>
               
               <div className="space-y-6">
+                {/* Alerte si vente annulée */}
+                {selectedVente.annulee && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+                    <div className="flex items-start gap-3">
+                      <X className="h-5 w-5 text-red-600 mt-0.5" />
+                      <div>
+                        <h3 className="font-medium text-red-900">Vente annulée</h3>
+                        {selectedVente.motif_annulation && (
+                          <p className="text-sm text-red-700 mt-1">
+                            Motif: {selectedVente.motif_annulation}
+                          </p>
+                        )}
+                        {selectedVente.date_annulation && (
+                          <p className="text-xs text-red-600 mt-1">
+                            Annulée le {formatDate(selectedVente.date_annulation)}
+                          </p>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                )}
+                
                 {/* Informations générales */}
                 <div className="grid grid-cols-2 gap-4">
                   <div>
@@ -1168,24 +1253,43 @@ export const Ventes = () => {
                 )}
                 
                 {/* Actions */}
-                <div className="flex justify-end gap-3 pt-4 border-t">
-                  <Button
-                    variant="outline"
-                    onClick={() => handlePrintTicket(selectedVente)}
-                  >
-                    <Printer className="h-4 w-4 mr-2" />
-                    Imprimer ticket
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={() => handlePrintRecu(selectedVente)}
-                  >
-                    <Receipt className="h-4 w-4 mr-2" />
-                    Imprimer reçu
-                  </Button>
-                  <Button onClick={() => setShowVenteDetails(false)}>
-                    Fermer
-                  </Button>
+                <div className="flex justify-between gap-3 pt-4 border-t">
+                  <div>
+                    {!selectedVente.annulee && (authService.getCurrentUser()?.role === 'pharmacien' || 
+                      (employeProfile && employeProfile.peut_annuler_vente)) && (
+                      <Button
+                        variant="outline"
+                        onClick={() => handleAnnulerVente(selectedVente)}
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                      >
+                        <X className="h-4 w-4 mr-2" />
+                        Annuler la vente
+                      </Button>
+                    )}
+                  </div>
+                  <div className="flex gap-3">
+                    {!selectedVente.annulee && (
+                      <>
+                        <Button
+                          variant="outline"
+                          onClick={() => handlePrintTicket(selectedVente)}
+                        >
+                          <Printer className="h-4 w-4 mr-2" />
+                          Imprimer ticket
+                        </Button>
+                        <Button
+                          variant="outline"
+                          onClick={() => handlePrintRecu(selectedVente)}
+                        >
+                          <Receipt className="h-4 w-4 mr-2" />
+                          Imprimer reçu
+                        </Button>
+                      </>
+                    )}
+                    <Button onClick={() => setShowVenteDetails(false)}>
+                      Fermer
+                    </Button>
+                  </div>
                 </div>
               </div>
             </div>

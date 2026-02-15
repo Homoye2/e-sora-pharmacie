@@ -7,6 +7,7 @@ import { Ventes } from './pages/Ventes'
 import { Commandes } from './pages/Commandes'
 import { Employes } from './pages/Employes'
 import { Revenus } from './pages/Revenus'
+import { Factures } from './pages/Factures'
 import { Parametres } from './pages/Parametres'
 import { Notifications } from './pages/Notifications'
 import { authService, employesService } from './services/api'
@@ -93,6 +94,10 @@ const PermissionProtectedRoute = ({
           return employeProfile.peut_voir_commandes
         case 'peut_traiter_commandes':
           return employeProfile.peut_traiter_commandes
+        case 'peut_annuler_vente':
+          return employeProfile.peut_annuler_vente
+        case 'peut_enregistrer_facture':
+          return employeProfile.peut_enregistrer_facture
         default:
           return false
       }
@@ -146,6 +151,11 @@ function App() {
           <Route path="revenus" element={
             <PermissionProtectedRoute requiredRole={['pharmacien']}>
               <Revenus />
+            </PermissionProtectedRoute>
+          } />
+          <Route path="factures" element={
+            <PermissionProtectedRoute requiredPermissions={['peut_enregistrer_facture']}>
+              <Factures />
             </PermissionProtectedRoute>
           } />
           <Route path="parametres" element={<Parametres />} />

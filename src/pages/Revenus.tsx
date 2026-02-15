@@ -25,18 +25,30 @@ interface RevenueStats {
   chiffreAffairesSemaine: number
   chiffreAffairesMois: number
   chiffreAffairesAnnee: number
+  chiffreAffairesSemainePasse: number
+  chiffreAffairesMoisPasse: number
+  chiffreAffairesAnneePasse: number
   transactionsJour: number
   transactionsSemaine: number
   transactionsMois: number
   transactionsAnnee: number
+  transactionsSemainePasse: number
+  transactionsMoisPasse: number
+  transactionsAnneePasse: number
   ventesManuellesJour: number
   ventesManuellesSemaine: number
   ventesManuellesMois: number
   ventesManuellesAnnee: number
+  ventesManuellesSemainePasse: number
+  ventesManuellesMoisPasse: number
+  ventesManuellesAnneePasse: number
   commandesJour: number
   commandesSemaine: number
   commandesMois: number
   commandesAnnee: number
+  commandesSemainePasse: number
+  commandesMoisPasse: number
+  commandesAnneePasse: number
   panierMoyen: number
   croissanceMois: number
 }
@@ -55,25 +67,37 @@ export const Revenus = () => {
     chiffreAffairesSemaine: 0,
     chiffreAffairesMois: 0,
     chiffreAffairesAnnee: 0,
+    chiffreAffairesSemainePasse: 0,
+    chiffreAffairesMoisPasse: 0,
+    chiffreAffairesAnneePasse: 0,
     transactionsJour: 0,
     transactionsSemaine: 0,
     transactionsMois: 0,
     transactionsAnnee: 0,
+    transactionsSemainePasse: 0,
+    transactionsMoisPasse: 0,
+    transactionsAnneePasse: 0,
     ventesManuellesJour: 0,
     ventesManuellesSemaine: 0,
     ventesManuellesMois: 0,
     ventesManuellesAnnee: 0,
+    ventesManuellesSemainePasse: 0,
+    ventesManuellesMoisPasse: 0,
+    ventesManuellesAnneePasse: 0,
     commandesJour: 0,
     commandesSemaine: 0,
     commandesMois: 0,
     commandesAnnee: 0,
+    commandesSemainePasse: 0,
+    commandesMoisPasse: 0,
+    commandesAnneePasse: 0,
     panierMoyen: 0,
     croissanceMois: 0
   })
   const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
   const [ventesParJour, setVentesParJour] = useState<VentesParJour[]>([])
   const [loading, setLoading] = useState(true)
-  const [periode, setPeriode] = useState<'jour' | 'semaine' | 'mois' | 'annee'>('mois')
+  const [periode, setPeriode] = useState<'jour' |'mois' | 'semaine' | 'mois_passe' | 'semaine_passe' | 'annee' | 'annee_passe'>('mois')
 
   useEffect(() => {
     loadData()
@@ -116,24 +140,40 @@ export const Revenus = () => {
 
   const calculateStats = (revenusCombines: RevenusCombines) => {
     const statsData = revenusCombines.statistiques_par_periode
+    
+    // Debug: afficher les clés disponibles
+    console.log('Clés disponibles dans statistiques_par_periode:', Object.keys(statsData))
+    console.log('Données complètes:', statsData)
 
     setStats({
       chiffreAffairesJour: statsData.aujourd_hui.chiffre_affaires_total,
       chiffreAffairesSemaine: statsData.cette_semaine.chiffre_affaires_total,
       chiffreAffairesMois: statsData.ce_mois.chiffre_affaires_total,
       chiffreAffairesAnnee: statsData.cette_annee.chiffre_affaires_total,
+      chiffreAffairesSemainePasse: statsData.semaine_passee?.chiffre_affaires_total || 0,
+      chiffreAffairesMoisPasse: statsData.mois_passe?.chiffre_affaires_total || 0,
+      chiffreAffairesAnneePasse: statsData.annee_passee?.chiffre_affaires_total || 0,
       transactionsJour: statsData.aujourd_hui.nombre_total,
       transactionsSemaine: statsData.cette_semaine.nombre_total,
       transactionsMois: statsData.ce_mois.nombre_total,
       transactionsAnnee: statsData.cette_annee.nombre_total,
+      transactionsSemainePasse: statsData.semaine_passee?.nombre_total || 0,
+      transactionsMoisPasse: statsData.mois_passe?.nombre_total || 0,
+      transactionsAnneePasse: statsData.annee_passee?.nombre_total || 0,
       ventesManuellesJour: statsData.aujourd_hui.nombre_ventes_manuelles,
       ventesManuellesSemaine: statsData.cette_semaine.nombre_ventes_manuelles,
       ventesManuellesMois: statsData.ce_mois.nombre_ventes_manuelles,
       ventesManuellesAnnee: statsData.cette_annee.nombre_ventes_manuelles,
+      ventesManuellesSemainePasse: statsData.semaine_passee?.nombre_ventes_manuelles || 0,
+      ventesManuellesMoisPasse: statsData.mois_passe?.nombre_ventes_manuelles || 0,
+      ventesManuellesAnneePasse: statsData.annee_passee?.nombre_ventes_manuelles || 0,
       commandesJour: statsData.aujourd_hui.nombre_commandes,
       commandesSemaine: statsData.cette_semaine.nombre_commandes,
       commandesMois: statsData.ce_mois.nombre_commandes,
       commandesAnnee: statsData.cette_annee.nombre_commandes,
+      commandesSemainePasse: statsData.semaine_passee?.nombre_commandes || 0,
+      commandesMoisPasse: statsData.mois_passe?.nombre_commandes || 0,
+      commandesAnneePasse: statsData.annee_passee?.nombre_commandes || 0,
       panierMoyen: revenusCombines.panier_moyen,
       croissanceMois: revenusCombines.croissance_mois
     })
@@ -169,6 +209,14 @@ export const Revenus = () => {
           commandesCount: stats.commandesSemaine,
           label: "Cette semaine"
         }
+      case 'semaine_passe':
+        return {
+          chiffre: stats.chiffreAffairesSemainePasse,
+          transactions: stats.transactionsSemainePasse,
+          ventesManuellesCount: stats.ventesManuellesSemainePasse,
+          commandesCount: stats.commandesSemainePasse,
+          label: "Semaine passée"
+        }
       case 'mois':
         return {
           chiffre: stats.chiffreAffairesMois,
@@ -177,6 +225,14 @@ export const Revenus = () => {
           commandesCount: stats.commandesMois,
           label: "Ce mois"
         }
+      case 'mois_passe':
+        return {
+          chiffre: stats.chiffreAffairesMoisPasse,
+          transactions: stats.transactionsMoisPasse,
+          ventesManuellesCount: stats.ventesManuellesMoisPasse,
+          commandesCount: stats.commandesMoisPasse,
+          label: "Mois passé"
+        }
       case 'annee':
         return {
           chiffre: stats.chiffreAffairesAnnee,
@@ -184,6 +240,14 @@ export const Revenus = () => {
           ventesManuellesCount: stats.ventesManuellesAnnee,
           commandesCount: stats.commandesAnnee,
           label: "Cette année"
+        }
+      case 'annee_passe':
+        return {
+          chiffre: stats.chiffreAffairesAnneePasse,
+          transactions: stats.transactionsAnneePasse,
+          ventesManuellesCount: stats.ventesManuellesAnneePasse,
+          commandesCount: stats.commandesAnneePasse,
+          label: "Année passée"
         }
       default:
         return {
@@ -236,19 +300,19 @@ export const Revenus = () => {
           </Button>
           
           {/* Sélecteur de période */}
-          <div className="flex gap-2">
-            {(['jour', 'semaine', 'mois', 'annee'] as const).map((p) => (
-              <Button
-                key={p}
-                variant={periode === p ? 'default' : 'outline'}
-                onClick={() => setPeriode(p)}
-                size="sm"
-                className="capitalize"
-              >
-                {p === 'annee' ? 'Année' : p}
-              </Button>
-            ))}
-          </div>
+          <select
+            value={periode}
+            onChange={(e) => setPeriode(e.target.value as typeof periode)}
+            className="px-4 py-2 border border-gray-300 rounded-md bg-white text-gray-700 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          >
+            <option value="jour">Aujourd'hui</option>
+            <option value="semaine">Semaine en cours</option>
+            <option value="semaine_passe">Semaine passée</option>
+            <option value="mois">Mois en cours</option>
+            <option value="mois_passe">Mois passé</option>
+            <option value="annee">Année en cours</option>
+            <option value="annee_passe">Année passée</option>
+          </select>
         </div>
       </div>
 
@@ -405,7 +469,7 @@ export const Revenus = () => {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Calendar className="h-5 w-5 text-green-600" />
-              Résumé du mois
+              Résumé du mois en cours
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -481,6 +545,130 @@ export const Revenus = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Comparaisons périodes */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-purple-600" />
+            Comparaison des périodes
+          </CardTitle>
+          <CardDescription>
+            Comparez les performances entre les différentes périodes
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {/* Comparaison Semaines */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Semaines
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-2 bg-green-50 rounded">
+                  <span className="text-sm text-gray-600">Semaine en cours</span>
+                  <span className="font-bold text-green-600">
+                    {formatCurrency(stats.chiffreAffairesSemaine)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                  <span className="text-sm text-gray-600">Semaine passée</span>
+                  <span className="font-bold text-gray-600">
+                    {formatCurrency(stats.chiffreAffairesSemainePasse)}
+                  </span>
+                </div>
+                {stats.chiffreAffairesSemainePasse > 0 && (
+                  <div className={`text-xs text-center p-2 rounded ${
+                    stats.chiffreAffairesSemaine >= stats.chiffreAffairesSemainePasse 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {stats.chiffreAffairesSemaine >= stats.chiffreAffairesSemainePasse ? '↑' : '↓'}
+                    {' '}
+                    {Math.abs(
+                      ((stats.chiffreAffairesSemaine - stats.chiffreAffairesSemainePasse) / 
+                      stats.chiffreAffairesSemainePasse) * 100
+                    ).toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Comparaison Mois */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Mois
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-2 bg-green-50 rounded">
+                  <span className="text-sm text-gray-600">Mois en cours</span>
+                  <span className="font-bold text-green-600">
+                    {formatCurrency(stats.chiffreAffairesMois)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                  <span className="text-sm text-gray-600">Mois passé</span>
+                  <span className="font-bold text-gray-600">
+                    {formatCurrency(stats.chiffreAffairesMoisPasse)}
+                  </span>
+                </div>
+                {stats.chiffreAffairesMoisPasse > 0 && (
+                  <div className={`text-xs text-center p-2 rounded ${
+                    stats.chiffreAffairesMois >= stats.chiffreAffairesMoisPasse 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {stats.chiffreAffairesMois >= stats.chiffreAffairesMoisPasse ? '↑' : '↓'}
+                    {' '}
+                    {Math.abs(
+                      ((stats.chiffreAffairesMois - stats.chiffreAffairesMoisPasse) / 
+                      stats.chiffreAffairesMoisPasse) * 100
+                    ).toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Comparaison Années */}
+            <div className="space-y-3">
+              <h4 className="font-semibold text-gray-700 flex items-center gap-2">
+                <Calendar className="h-4 w-4" />
+                Années
+              </h4>
+              <div className="space-y-2">
+                <div className="flex justify-between items-center p-2 bg-green-50 rounded">
+                  <span className="text-sm text-gray-600">Année en cours</span>
+                  <span className="font-bold text-green-600">
+                    {formatCurrency(stats.chiffreAffairesAnnee)}
+                  </span>
+                </div>
+                <div className="flex justify-between items-center p-2 bg-gray-50 rounded">
+                  <span className="text-sm text-gray-600">Année passée</span>
+                  <span className="font-bold text-gray-600">
+                    {formatCurrency(stats.chiffreAffairesAnneePasse)}
+                  </span>
+                </div>
+                {stats.chiffreAffairesAnneePasse > 0 && (
+                  <div className={`text-xs text-center p-2 rounded ${
+                    stats.chiffreAffairesAnnee >= stats.chiffreAffairesAnneePasse 
+                      ? 'bg-green-100 text-green-700' 
+                      : 'bg-red-100 text-red-700'
+                  }`}>
+                    {stats.chiffreAffairesAnnee >= stats.chiffreAffairesAnneePasse ? '↑' : '↓'}
+                    {' '}
+                    {Math.abs(
+                      ((stats.chiffreAffairesAnnee - stats.chiffreAffairesAnneePasse) / 
+                      stats.chiffreAffairesAnneePasse) * 100
+                    ).toFixed(1)}%
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

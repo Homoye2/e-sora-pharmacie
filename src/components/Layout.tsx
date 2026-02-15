@@ -10,7 +10,10 @@ import {
   Menu,
   X,
   User as UserIcon,
-  Bell
+  Bell,
+  FileText,
+  ChevronDown,
+  ChevronRight
 } from 'lucide-react'
 import { Button } from './ui/button'
 import { Badge } from './ui/badge'
@@ -32,27 +35,39 @@ const menuItems = [
     permissions: ['peut_gerer_stock'] // Employés avec permission peut_gerer_stock
   },
   {
-    title: 'Ventes Manuelles',
+    title: 'Ventes',
     icon: ShoppingCart,
-    path: '/ventes',
     roles: ['pharmacien', 'employe_pharmacie'],
-    permissions: ['peut_vendre'] // Employés avec permission peut_vendre
+    permissions: [],
+    subItems: [
+      {
+        title: 'Ventes Manuelles',
+        path: '/ventes',
+        roles: ['pharmacien', 'employe_pharmacie'],
+        permissions: ['peut_vendre']
+      },
+      {
+        title: 'Commandes',
+        path: '/commandes',
+        roles: ['pharmacien', 'employe_pharmacie'],
+        permissions: ['peut_voir_commandes'],
+        badge: true
+      }
+    ]
   },
   {
-    title: 'Notifications',
-    icon: Bell,
-    path: '/notifications',
-    roles: ['pharmacien', 'employe_pharmacie'],
-    permissions: [], // Accessible à tous
-    badge: true // Indique qu'il faut afficher un badge
+    title: 'Revenus',
+    icon: TrendingUp,
+    path: '/revenus',
+    roles: ['pharmacien'], // Seuls les pharmaciens
+    permissions: []
   },
   {
-    title: 'Commandes',
-    icon: ShoppingCart,
-    path: '/commandes',
+    title: 'Factures Fournisseurs',
+    icon: FileText,
+    path: '/factures',
     roles: ['pharmacien', 'employe_pharmacie'],
-    permissions: ['peut_voir_commandes'], // Employés avec permission peut_voir_commandes
-    badge: true // Indique qu'il faut afficher un badge
+    permissions: ['peut_enregistrer_facture'] // Employés avec permission
   },
   {
     title: 'Employés',
@@ -61,12 +76,14 @@ const menuItems = [
     roles: ['pharmacien'], // Seuls les pharmaciens
     permissions: []
   },
-  {
-    title: 'Revenus',
-    icon: TrendingUp,
-    path: '/revenus',
-    roles: ['pharmacien'], // Seuls les pharmaciens
-    permissions: []
+  
+   {
+    title: 'Notifications',
+    icon: Bell,
+    path: '/notifications',
+    roles: ['pharmacien', 'employe_pharmacie'],
+    permissions: [], // Accessible à tous
+    badge: true // Indique qu'il faut afficher un badge
   },
   {
     title: 'Paramètres',
@@ -81,6 +98,7 @@ export const Layout = () => {
   const navigate = useNavigate()
   const location = useLocation()
   const [sidebarOpen, setSidebarOpen] = useState(false)
+  const [ventesMenuOpen, setVentesMenuOpen] = useState(false)
   const [user, setUser] = useState<User | null>(null)
   const [pharmacie, setPharmacie] = useState<Pharmacie | null>(null)
   const [employeProfile, setEmployeProfile] = useState<EmployePharmacie | null>(null)
@@ -183,6 +201,10 @@ export const Layout = () => {
             return employeProfile.peut_voir_commandes
           case 'peut_traiter_commandes':
             return employeProfile.peut_traiter_commandes
+          case 'peut_annuler_vente':
+            return employeProfile.peut_annuler_vente
+          case 'peut_enregistrer_facture':
+            return employeProfile.peut_enregistrer_facture
           default:
             return false
         }
@@ -247,8 +269,78 @@ export const Layout = () => {
               .filter(item => hasPermission(item))
               .map((item) => {
                 const Icon = item.icon
-                const isActive = isActivePath(item.path)
+                const isActive = item.path ? isActivePath(item.path) : false
+                const hasSubItems = item.subItems && item.subItems.length > 0
                 
+                // Si l'item a des sous-items
+                if (hasSubItems) {
+                  const isVentesMenuOpen = item.title === 'Ventes' && ventesMenuOpen
+                  const hasActiveSubItem = item.subItems?.some(subItem => isActivePath(subItem.path))
+                  
+                  return (
+                    <li key={item.title}>
+                      {/* Menu parent */}
+                      <button
+                        onClick={() => {
+                          if (item.title === 'Ventes') {
+                            setVentesMenuOpen(!ventesMenuOpen)
+                          }
+                        }}
+                        className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${
+                          hasActiveSubItem
+                            ? 'bg-green-100 text-green-700'
+                            : 'text-gray-700 hover:bg-gray-100'
+                        }`}
+                      >
+                        <div className="flex items-center">
+                          <Icon className="h-5 w-5 mr-3" />
+                          {item.title}
+                        </div>
+                        {isVentesMenuOpen ? (
+                          <ChevronDown className="h-4 w-4" />
+                        ) : (
+                          <ChevronRight className="h-4 w-4" />
+                        )}
+                      </button>
+                      
+                      {/* Sous-menu */}
+                      {isVentesMenuOpen && (
+                        <ul className="ml-8 mt-1 space-y-1">
+                          {item.subItems
+                            ?.filter(subItem => hasPermission(subItem))
+                            .map((subItem) => {
+                              const isSubActive = isActivePath(subItem.path)
+                              
+                              return (
+                                <li key={subItem.path}>
+                                  <button
+                                    onClick={() => {
+                                      navigate(subItem.path)
+                                      setSidebarOpen(false)
+                                    }}
+                                    className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
+                                      isSubActive
+                                        ? 'bg-green-50 text-green-700 font-medium'
+                                        : 'text-gray-600 hover:bg-gray-50'
+                                    }`}
+                                  >
+                                    <span>{subItem.title}</span>
+                                    {subItem.badge && subItem.path === '/commandes' && commandesCount > 0 && (
+                                      <Badge variant="destructive" className="ml-2 px-2 py-1 text-xs">
+                                        {commandesCount}
+                                      </Badge>
+                                    )}
+                                  </button>
+                                </li>
+                              )
+                            })}
+                        </ul>
+                      )}
+                    </li>
+                  )
+                }
+                
+                // Item normal sans sous-menu
                 return (
                   <li key={item.path}>
                     <button
@@ -268,11 +360,6 @@ export const Layout = () => {
                       </div>
                       {item.badge && (
                         <div className="flex items-center">
-                          {item.path === '/commandes' && commandesCount > 0 && (
-                            <Badge variant="destructive" className="ml-2 px-2 py-1 text-xs">
-                              {commandesCount}
-                            </Badge>
-                          )}
                           {item.path === '/notifications' && notificationsCount > 0 && (
                             <Badge variant="destructive" className="ml-2 px-2 py-1 text-xs">
                               {notificationsCount}

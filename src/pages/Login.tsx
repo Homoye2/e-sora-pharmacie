@@ -24,7 +24,7 @@ export const Login = () => {
 
     try {
       const response = await authService.login(formData.email, formData.password)
-      
+      console.log("user :",response.user)
       // Vérifier que l'utilisateur est un pharmacien
       if (response.user.role !== 'pharmacien' && response.user.role !== 'employe_pharmacie') {
         setError('Accès réservé aux pharmaciens uniquement')
@@ -40,10 +40,19 @@ export const Login = () => {
       navigate('/dashboard')
     } catch (error: any) {
       console.error('Erreur de connexion:', error)
-      
+      console.log("error :", error.response)
       if (error.response?.status === 401) {
         setError('Email ou mot de passe incorrect')
+      } else if (error.response?.data?.non_field_errors) {
+        // Gérer les erreurs de validation du serializer
+        const errors = error.response.data.non_field_errors
+        if (Array.isArray(errors) && errors.length > 0) {
+          setError(errors[0])
+        } else {
+          setError('Erreur de connexion. Veuillez réessayer.')
+        }
       } else if (error.response?.data?.message) {
+        console.log("error :", error.response.data.message)
         setError(error.response.data.message)
       } else if (error.message) {
         setError(`Erreur: ${error.message}`)
