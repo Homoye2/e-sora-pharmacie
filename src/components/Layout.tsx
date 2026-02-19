@@ -38,21 +38,21 @@ const menuItems = [
     title: 'Ventes',
     icon: ShoppingCart,
     roles: ['pharmacien', 'employe_pharmacie'],
-    permissions: [],
+    permissions: [] as string[],
     subItems: [
       {
         title: 'Ventes Manuelles',
         icon: ShoppingCart,
         path: '/ventes',
         roles: ['pharmacien', 'employe_pharmacie'],
-        permissions: ['peut_vendre']
+        permissions: ['peut_vendre'] as string[]
       },
       {
         title: 'Commandes',
         icon: Package,
         path: '/commandes',
         roles: ['pharmacien', 'employe_pharmacie'],
-        permissions: ['peut_voir_commandes'],
+        permissions: ['peut_voir_commandes'] as string[],
         badge: true
       }
     ]
@@ -179,7 +179,7 @@ export const Layout = () => {
     }
   }, [user])
 
-  const hasPermission = (item: typeof menuItems[0]) => {
+  const hasPermission = (item: any) => {
     if (!user) return false
     
     // Vérifier le rôle
@@ -193,7 +193,7 @@ export const Layout = () => {
     
     // Vérifier les permissions de l'employé
     if (user.role === 'employe_pharmacie' && employeProfile) {
-      return item.permissions.some(permission => {
+      return item.permissions.some((permission: string) => {
         switch (permission) {
           case 'peut_vendre':
             return employeProfile.peut_vendre
@@ -349,7 +349,9 @@ export const Layout = () => {
                   <li key={item.path}>
                     <button
                       onClick={() => {
-                        navigate(item.path)
+                        if (item.path) {
+                          navigate(item.path)
+                        }
                         setSidebarOpen(false)
                       }}
                       className={`w-full flex items-center justify-between px-3 py-2 text-sm font-medium rounded-lg transition-colors ${

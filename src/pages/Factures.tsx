@@ -117,14 +117,14 @@ export const Factures = () => {
       // factureFournisseurService et fournisseurService retournent {data: ...}
       // produitService retourne directement les données
       const facturesArray = facturesData.data 
-        ? (Array.isArray(facturesData.data) ? facturesData.data : (facturesData.data?.results || []))
-        : (Array.isArray(facturesData) ? facturesData : (facturesData?.results || []))
+        ? (Array.isArray(facturesData.data) ? facturesData.data : ((facturesData.data as any)?.results || []))
+        : (Array.isArray(facturesData) ? facturesData : ((facturesData as any)?.results || []))
       
       const fournisseursArray = fournisseursData.data
-        ? (Array.isArray(fournisseursData.data) ? fournisseursData.data : (fournisseursData.data?.results || []))
-        : (Array.isArray(fournisseursData) ? fournisseursData : (fournisseursData?.results || []))
+        ? (Array.isArray(fournisseursData.data) ? fournisseursData.data : ((fournisseursData.data as any)?.results || []))
+        : (Array.isArray(fournisseursData) ? fournisseursData : ((fournisseursData as any)?.results || []))
       
-      const produitsArray = Array.isArray(produitsData) ? produitsData : (produitsData?.results || [])
+      const produitsArray = Array.isArray(produitsData) ? produitsData : ((produitsData as any)?.results || [])
       
       setFactures(facturesArray)
       setFournisseurs(fournisseursArray)
