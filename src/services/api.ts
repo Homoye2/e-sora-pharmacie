@@ -1,6 +1,6 @@
 import axios from 'axios'
 
-const API_BASE_URL = 'http://localhost:8000/api'
+const API_BASE_URL = 'https://e-sora.onglalumiere.org/api'
 
 // Configuration d'axios
 const api = axios.create({
@@ -293,6 +293,8 @@ export interface EmployePharmacie {
   peut_gerer_stock: boolean
   peut_voir_commandes: boolean
   peut_traiter_commandes: boolean
+  peut_annuler_vente: boolean
+  peut_enregistrer_facture: boolean
   actif: boolean
   notes: string
   created_at: string
@@ -311,6 +313,8 @@ export interface EmployePharmacieCreate {
   peut_gerer_stock: boolean
   peut_voir_commandes: boolean
   peut_traiter_commandes: boolean
+  peut_annuler_vente: boolean
+  peut_enregistrer_facture: boolean
   notes?: string
 }
 

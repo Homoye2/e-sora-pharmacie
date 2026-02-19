@@ -42,12 +42,14 @@ const menuItems = [
     subItems: [
       {
         title: 'Ventes Manuelles',
+        icon: ShoppingCart,
         path: '/ventes',
         roles: ['pharmacien', 'employe_pharmacie'],
         permissions: ['peut_vendre']
       },
       {
         title: 'Commandes',
+        icon: Package,
         path: '/commandes',
         roles: ['pharmacien', 'employe_pharmacie'],
         permissions: ['peut_voir_commandes'],
@@ -315,7 +317,9 @@ export const Layout = () => {
                                 <li key={subItem.path}>
                                   <button
                                     onClick={() => {
-                                      navigate(subItem.path)
+                                      if (subItem.path) {
+                                        navigate(subItem.path)
+                                      }
                                       setSidebarOpen(false)
                                     }}
                                     className={`w-full flex items-center justify-between px-3 py-2 text-sm rounded-lg transition-colors ${
